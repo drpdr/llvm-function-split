@@ -93,20 +93,22 @@ std::unordered_set<llvm::GlobalVariable *> iterateOperands(llvm::User &user) {
   return globals;
 }
 
-std::unordered_set<llvm::GlobalVariable *> resolveAllDependencies(llvm::User& user) {
+std::unordered_set<llvm::GlobalVariable *>
+resolveAllDependencies(llvm::User &user) {
   std::unordered_set<llvm::GlobalVariable *> globals;
   std::queue<llvm::GlobalVariable *> queueVariablesNeedMoving;
-  for(const auto item : iterateOperands(user)) {
+  for (const auto item : iterateOperands(user)) {
     queueVariablesNeedMoving.push(item);
   }
-  while(queueVariablesNeedMoving.size() > 0) {
+  while (queueVariablesNeedMoving.size() > 0) {
     auto currentVariable = queueVariablesNeedMoving.front();
     queueVariablesNeedMoving.pop();
     globals.insert(currentVariable);
 
-    if(currentVariable->hasInitializer()) {
-      for(const auto item : iterateOperands(*currentVariable->getInitializer())) {
-        if(globals.find(item) == globals.end()) {
+    if (currentVariable->hasInitializer()) {
+      for (const auto item :
+           iterateOperands(*currentVariable->getInitializer())) {
+        if (globals.find(item) == globals.end()) {
           queueVariablesNeedMoving.push(item);
         }
       }
@@ -120,7 +122,7 @@ struct MyPass : public llvm::InstVisitor<MyPass> {
   // TODO: Move this to a separate function because globals
   // also need the full dependency tree moved.
   void visitInstruction(llvm::Instruction &instruction) {
-    for(const auto item : resolveAllDependencies(instruction)) {
+    for (const auto item : resolveAllDependencies(instruction)) {
       globals.insert(item);
     }
   }
@@ -157,7 +159,8 @@ int main(int argc, char **argv) {
 
   for (auto &global : loadedModule->globals()) {
     if (global.isConstant()) {
-      global.setVisibility(llvm::GlobalValue::VisibilityTypes::DefaultVisibility);
+      global.setVisibility(
+          llvm::GlobalValue::VisibilityTypes::DefaultVisibility);
       global.setDSOLocal(false);
       continue;
     }
@@ -195,9 +198,9 @@ int main(int argc, char **argv) {
     command << extractProgram << " " << extractFilename
             << " --glob=" << globalVariable.getName().str() << " ";
 
-    if(globalVariable.hasInitializer()) {
-      for(const auto dependency : resolveAllDependencies(*globalVariable.getInitializer()))
-      {
+    if (globalVariable.hasInitializer()) {
+      for (const auto dependency :
+           resolveAllDependencies(*globalVariable.getInitializer())) {
         command << " --glob=" << dependency->getName().str() << " ";
       }
     }
